@@ -12,7 +12,7 @@ import (
 
 // Opts is the struct with the options that the program accepts.
 type Opts struct {
-	Input string `arg:"positional,required" help:"input file/s (STDIN if -)"`
+	Input string `arg:"positional,required" help:"input file (STDIN if -)"`
 	RNA   bool   `arg:"" help:"convert to RNA"`
 }
 
