@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 
@@ -17,7 +17,7 @@ type Opts struct {
 }
 
 // Version returns the program version.
-func (Opts) Version() string { return "fasta-rnadna 0.1" }
+func (Opts) Version() string { return "fasta-rnadna 0.2" }
 
 // Description returns an extended description of the program.
 func (Opts) Description() string {
@@ -29,17 +29,19 @@ func main() {
 	arg.MustParse(&opts)
 
 	// open input file.
-	f, err := xopen.Ropen(opts.Input)
+	r, err := xopen.Ropen(opts.Input)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// create scanner.
-	sc := bufio.NewScanner(f)
-
-	idx := 0 // determines line index within a fastq block.
-	for sc.Scan() {
-		l := sc.Text()
+	for {
+		l, err := readLn(r)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatal(err)
+		}
 		if l[0] != '>' {
 			if opts.RNA {
 				l = strings.Map(d2r, l)
@@ -48,14 +50,9 @@ func main() {
 			}
 		}
 		fmt.Println(l)
-		idx++
 	}
 
-	if err = sc.Err(); err != nil {
-		log.Fatal(sc.Err())
-	}
-
-	if err = f.Close(); err != nil {
+	if err = r.Close(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -78,4 +75,19 @@ func d2r(r rune) rune {
 		return 'u'
 	}
 	return r
+}
+
+// readLn returns a single line (without the ending \n) from the input reader.
+// An error is returned if an error is returned by the reader.
+func readLn(r *xopen.Reader) (string, error) {
+	var (
+		isPrefix bool  = true
+		err      error = nil
+		line, ln []byte
+	)
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.ReadLine()
+		ln = append(ln, line...)
+	}
+	return string(ln), err
 }
